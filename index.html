@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Milo's Ocean Escape 🐠</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ocean-blue: #00a8ff;
+            --sand-yellow: #fbc531;
+            --coral-pink: #ff7f50;
+            --danger-red: #e84118;
+            --text-dark: #2f3640;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            height: 90vh;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border: 8px solid white;
+            border-radius: 40px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        /* --- CHASE SYSTEM --- */
+        #chase-bar {
+            width: 85%;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 30px;
+            margin-top: 20px;
+            position: relative;
+            border: 4px solid white;
+            overflow: hidden;
+        }
+
+        #milo-sprite {
+            position: absolute;
+            font-size: 40px;
+            bottom: 5px;
+            left: 40%;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 2;
+        }
+
+        #shark-sprite {
+            position: absolute;
+            font-size: 45px;
+            bottom: 2px;
+            left: 0%;
+            transition: all 0.8s ease-in-out;
+            z-index: 1;
+        }
+
+        /* --- SCREENS --- */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 25px;
+            width: 100%;
+            height: 100%;
+        }
+
+        .active { display: flex; }
+
+        h1 { font-family: 'Fredoka One', cursive; color: white; font-size: 2.2rem; text-shadow: 2px 2px #0097e6; margin: 10px 0; }
+        p { color: white; font-size: 1.1rem; line-height: 1.4; font-weight: 700; }
+
+        /* --- WORD CARD --- */
+        #word-display {
+            background: white;
+            padding: 20px 40px;
+            border-radius: 25px;
+            margin: 20px 0;
+            box-shadow: 0 10px 0 #ddd;
+        }
+
+        .phoneme-highlight { color: var(--danger-red); font-size: 4.5rem; font-family: 'Fredoka One'; }
+        .word-rest { color: var(--text-dark); font-size: 4.5rem; font-family: 'Fredoka One'; }
+
+        #visual-hint { font-size: 80px; margin-bottom: 10px; }
+
+        /* --- BUTTONS --- */
+        .btn {
+            background: var(--sand-yellow);
+            border: none;
+            padding: 15px 35px;
+            font-size: 1.5rem;
+            font-family: 'Fredoka One', cursive;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #d4a017;
+            transition: 0.1s;
+            margin-top: 15px;
+        }
+
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d4a017; }
+
+        #mic-btn {
+            background: #ff4757;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            margin: 10px;
+            border: 6px solid white;
+            animation: pulse 2s infinite;
+        }
+
+        #mic-btn.listening {
+            background: #2ed573;
+            animation: active-pulse 0.5s infinite;
+        }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes active-pulse { 0% { box-shadow: 0 0 0 0px rgba(46, 213, 115, 0.7); } 100% { box-shadow: 0 0 0 20px rgba(46, 213, 115, 0); } }
+
+        /* --- DECORATIONS --- */
+        .bubble {
+            position: absolute;
+            background: rgba(255,255,255,0.4);
+            border: 1px solid rgba(255,255,255,0.6);
+            border-radius: 50%;
+            bottom: -50px;
+            animation: rise 8s infinite ease-in;
+            z-index: 1;
+        }
+
+        @keyframes rise {
+            0% { transform: translateY(0) translateX(0); }
+            50% { transform: translateX(30px); opacity: 0.8; }
+            100% { transform: translateY(-100vh) translateX(-20px); opacity: 0; }
+        }
+
+        #feedback { font-size: 1.4rem; font-weight: 800; height: 30px; margin-top: 10px; }
+        .status-text { color: white; font-size: 1rem; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="chase-bar">
+        <div id="shark-sprite">🦈</div>
+        <div id="milo-sprite">🐠</div>
+    </div>
+
+    <!-- Intro Screen -->
+    <div id="intro-screen" class="screen active">
+        <h1>Help Milo! 🐠</h1>
+        <p>A shark is chasing Milo! 😱<br>Say the words correctly to help him swim away!</p>
+        <div style="font-size: 3rem; margin: 15px;">🐠💨 🦈</div>
+        <button class="btn" onclick="startGame()">Start Game 🎮</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <div id="visual-hint">🐱</div>
+        <div id="word-display">
+            <span class="phoneme-highlight" id="first-letter">C</span><span class="word-rest" id="rest-word">at</span>
+        </div>
+        <div id="feedback"></div>
+        
+        <button id="mic-btn" onclick="toggleMic()">🎤</button>
+        <p class="status-text" id="status-msg">Tap the mic and speak!</p>
+        
+        <button id="next-btn" class="btn" style="display: none;" onclick="nextLevel()">Next ➡️</button>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" class="screen">
+        <h1 id="end-title">Game Over</h1>
+        <div id="end-visual" style="font-size: 5rem; margin: 20px;"></div>
+        <p id="end-msg"></p>
+        <button class="btn" onclick="location.reload()">Play Again 🔄</button>
+    </div>
+</div>
+
+<script>
+    const wordList = [
+        { word: "cat", hint: "🐱", phoneme: "C" },
+        { word: "bat", hint: "🦇", phoneme: "B" },
+        { word: "mat", hint: "🧶", phoneme: "M" },
+        { word: "pot", hint: "🥔", phoneme: "P" },
+        { word: "hot", hint: "🔥", phoneme: "H" },
+        { word: "hen", hint: "🐔", phoneme: "H" },
+        { word: "fin", hint: "🐟", phoneme: "F" },
+        { word: "bin", hint: "🗑️", phoneme: "B" },
+        { word: "run", hint: "🏃‍♂️", phoneme: "R" },
+        { word: "sun", hint: "🌞", phoneme: "S" }
+    ];
+
+    let currentLevel = 0;
+    let mistakes = 0;
+    let sharkPos = 0;
+    let miloPos = 40;
+    let isListening = false;
+
+    // Speech Recognition Setup
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+
+        recognition.onresult = (event) => {
+            const result = event.results[0][0].transcript.toLowerCase();
+            processResult(result);
+        };
+
+        recognition.onerror = () => {
+            setFeedback("Try again 😊", "#ff4757");
+            stopMicUI();
+        };
+
+        recognition.onend = () => {
+            stopMicUI();
+        };
+    }
+
+    function startGame() {
+        showScreen('game-screen');
+        updateLevel();
+        createBubbles();
+        playOceanSound();
+    }
+
+    function updateLevel() {
+        const item = wordList[currentLevel];
+        document.getElementById('visual-hint').innerText = item.hint;
+        document.getElementById('first-letter').innerText = item.phoneme;
+        document.getElementById('rest-word').innerText = item.word.substring(1);
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('next-btn').style.display = "none";
+        document.getElementById('mic-btn').style.display = "flex";
+        document.getElementById('status-msg').innerText = "Tap mic and say: " + item.word;
+    }
+
+    function toggleMic() {
+        if (!recognition) {
+            alert("Speech recognition not supported in this browser. Please use Chrome.");
+            return;
+        }
+        if (isListening) return;
+
+        isListening = true;
+        recognition.start();
+        document.getElementById('mic-btn').classList.add('listening');
+        document.getElementById('status-msg').innerText = "Listening... 👂";
+    }
+
+    function stopMicUI() {
+        isListening = false;
+        document.getElementById('mic-btn').classList.remove('listening');
+    }
+
+    function processResult(spoken) {
+        const target = wordList[currentLevel].word.toLowerCase();
+        
+        // Simple fuzzy match (70% or word contains word)
+        if (spoken.includes(target) || target.includes(spoken)) {
+            handleCorrect();
+        } else {
+            handleWrong();
+        }
+    }
+
+    function handleCorrect() {
+        setFeedback("Good job! 🎉", "#2ed573");
+        playClap();
+        
+        // Move Milo Forward
+        miloPos = Math.min(miloPos + 10, 85);
+        updateSprites();
+
+        document.getElementById('mic-btn').style.display = "none";
+        document.getElementById('next-btn').style.display = "inline-block";
+        document.getElementById('status-msg').innerText = "You did it!";
+    }
+
+    function handleWrong() {
+        setFeedback("Try again 😊", "#ff4757");
+        playOops();
+        
+        mistakes++;
+        // Shark moves closer
+        sharkPos += 12;
+        updateSprites();
+
+        if (mistakes >= 5 || (sharkPos + 5 >= miloPos)) {
+            endGame(false);
+        }
+    }
+
+    function nextLevel() {
+        currentLevel++;
+        if (currentLevel >= wordList.length) {
+            endGame(true);
+        } else {
+            updateLevel();
+        }
+    }
+
+    function updateSprites() {
+        document.getElementById('milo-sprite').style.left = miloPos + "%";
+        document.getElementById('shark-sprite').style.left = sharkPos + "%";
+    }
+
+    function setFeedback(text, color) {
+        const f = document.getElementById('feedback');
+        f.innerText = text;
+        f.style.color = color;
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function endGame(win) {
+        showScreen('end-screen');
+        const title = document.getElementById('end-title');
+        const visual = document.getElementById('end-visual');
+        const msg = document.getElementById('end-msg');
+
+        if (win) {
+            title.innerText = "Milo Escaped! 🎉";
+            visual.innerText = "🐠💨 ✨";
+            msg.innerText = "Great job! Milo is safe in the coral reef!";
+        } else {
+            title.innerText = "Oh no! 🦈";
+            visual.innerText = "💀";
+            msg.innerText = "The shark caught Milo. Let's try again!";
+        }
+    }
+
+    // --- AUDIO SIMULATION (No external files needed) ---
+    function playClap() { beep(440, "sine", 0.2); beep(540, "sine", 0.2); }
+    function playOops() { beep(200, "sawtooth", 0.3); }
+    function playOceanSound() { /* Simple ambient would go here */ }
+
+    function beep(freq, type, duration) {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.type = type;
+        oscillator.frequency.value = freq;
+        gainNode.gain.value = 0.1;
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), duration * 1000);
+    }
+
+    // Decoration bubbles
+    function createBubbles() {
+        setInterval(() => {
+            const b = document.createElement('div');
+            b.className = 'bubble';
+            const size = Math.random() * 30 + 10 + "px";
+            b.style.width = size;
+            b.style.height = size;
+            b.style.left = Math.random() * 100 + "%";
+            document.body.appendChild(b);
+            setTimeout(() => b.remove(), 8000);
+        }, 1000);
+    }
+</script>
+
+</body>
+</html>
